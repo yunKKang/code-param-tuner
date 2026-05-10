@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Param Tuner</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="toolbar">
+        <div class="toolbar-left">
+            <h1>Code Param Tuner</h1>
+            <span class="subtitle">Python 参数调优工具</span>
+        </div>
+        <div class="toolbar-right">
+            <label class="btn btn-upload">
+                导入脚本
+                <input type="file" id="fileInput" accept=".py,.ipynb,application/x-ipynb+json,application/json" hidden>
+            </label>
+            <button class="btn btn-export" id="btnExport" disabled>导出代码</button>
+            <button class="btn btn-theme" id="btnTheme" aria-pressed="false">浅色</button>
+            <button class="btn btn-settings" id="btnSettings">API 设置</button>
+        </div>
+    </header>
+
+    <div class="fallback-banner" id="fallbackBanner" style="display:none;">
+        <span class="banner-icon">&#9888;</span>
+        <span id="fallbackText">AI 分析不可用，已使用基础模式识别参数。结果可能包含非参数变量，建议手动确认。</span>
+        <button class="banner-close" id="bannerClose">&times;</button>
+    </div>
+
+    <div class="panels">
+        <!-- Panel 1: Source Code -->
+        <div class="panel" id="panel1">
+            <div class="panel-header">
+                <span class="panel-title">源代码</span>
+                <div class="panel-actions">
+                    <button class="btn-sm" id="btnPaste" title="粘贴代码">粘贴</button>
+                    <button class="btn-sm btn-accent" id="btnAnalyze" disabled>分析参数</button>
+                    <button class="btn-sm" id="btnCollapseSource" title="收起源代码">收起</button>
+                </div>
+            </div>
+            <div class="editor-container" id="editorSource"></div>
+        </div>
+
+        <!-- Resize handle -->
+        <div class="resize-handle" id="resize12" data-left="panel1" data-right="panel2"></div>
+
+        <!-- Panel 2: Parameters -->
+        <div class="panel" id="panel2">
+            <div class="panel-header">
+                <span class="panel-title">参数调整</span>
+                <div class="panel-actions">
+                    <button class="btn-sm" id="btnFocusMode">专注模式</button>
+                    <button class="btn-sm" id="btnToggleSource">隐藏源代码</button>
+                    <button class="btn-sm" id="btnBackToConfirm" style="display:none;">&#8592; 重新确认</button>
+                    <button class="btn-sm" id="btnToggleOutput">隐藏输出</button>
+                </div>
+            </div>
+
+            <!-- Phase 2a: Confirm -->
+            <div class="panel-body" id="confirmPhase">
+                <div class="empty-state" id="confirmEmpty">
+                    <div class="empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                        </svg>
+                    </div>
+                    <p class="empty-title">粘贴或导入 Python 代码</p>
+                    <p class="empty-desc">然后点击「分析参数」识别可调参数</p>
+                </div>
+                <div id="confirmList" style="display:none;">
+                    <div class="confirm-header">
+                        <p>识别到以下参数，请确认需要调整的：</p>
+                        <div class="confirm-actions">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="selectAll" checked> 全选
+                            </label>
+                            <button class="btn-sm btn-accent" id="btnConfirm">确认选择</button>
+                        </div>
+                    </div>
+                    <div id="confirmItems"></div>
+                </div>
+            </div>
+
+            <!-- Phase 2b: Edit -->
+            <div class="panel-body" id="editPhase" style="display:none;">
+                <div id="paramGroups"></div>
+            </div>
+        </div>
+
+        <!-- Resize handle -->
+        <div class="resize-handle" id="resize23" data-left="panel2" data-right="panel3"></div>
+
+        <!-- Panel 3: Output -->
+        <div class="panel" id="panel3">
+            <div class="panel-header">
+                <span class="panel-title">修改后代码</span>
+                <div class="panel-actions">
+                    <button class="btn-sm" id="btnResetAll" style="display:none;">重置全部</button>
+                    <button class="btn-sm" id="btnCopy">复制</button>
+                    <button class="btn-sm" id="btnCollapseOutput" title="收起修改后代码">收起</button>
+                </div>
+            </div>
+            <div class="editor-container" id="editorOutput"></div>
+            <div class="change-summary" id="changeSummary" style="display:none;">
+                <div class="summary-title">修改摘要</div>
+                <div id="changeList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="settingsTitle">API 设置</h3>
+                <button class="modal-close" id="settingsClose" aria-label="关闭">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="inputApiKey">API Key</label>
+                    <div class="input-with-toggle">
+                        <input type="password" id="inputApiKey" placeholder="sk-ant-... 或 sk-...">
+                        <button type="button" class="btn-toggle-vis" id="btnToggleKey" title="显示/隐藏">👁</button>
+                    </div>
+                    <div class="form-hint" id="apiKeyStatus">API Key 只保存在本机后端配置中，不写入浏览器 localStorage。</div>
+                </div>
+                <div class="form-group">
+                    <label for="inputBaseUrl">Base URL（可选，留空使用 Anthropic 默认）</label>
+                    <input type="text" id="inputBaseUrl" placeholder="https://api.anthropic.com 或第三方兼容地址">
+                    <div class="form-hint">支持 Anthropic 原生接口和所有 OpenAI 兼容接口（OpenRouter、LiteLLM 等）</div>
+                </div>
+                <div class="form-group">
+                    <label for="inputApiFormat">API 格式</label>
+                    <select id="inputApiFormat">
+                        <option value="auto">自动判断</option>
+                        <option value="anthropic">Anthropic Messages（原生）</option>
+                        <option value="openai">OpenAI 兼容</option>
+                    </select>
+                    <div class="form-hint">第三方 Claude 代理请选择 Anthropic Messages（原生）</div>
+                </div>
+                <div class="form-group">
+                    <label for="inputModel">Model（可选）</label>
+                    <input type="text" id="inputModel" placeholder="例如 mimo-v2.5-pro；OpenAI 兼容留空则不传模型">
+                    <div class="form-hint">Anthropic Messages 需要模型名；OpenAI 兼容留空时尊重上游默认模型</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="btnClearApiKey" type="button">清除 Key</button>
+                <button class="btn btn-accent" id="btnSaveSettings">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monaco Editor from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.min.js" crossorigin="anonymous"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
