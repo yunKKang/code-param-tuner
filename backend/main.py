@@ -148,10 +148,10 @@ async def add_security_headers(request: Request, call_next):
     response.headers.setdefault(
         "Content-Security-Policy",
         "default-src 'self'; "
-        "script-src 'self' https://cdn.jsdelivr.net 'unsafe-eval'; "
-        "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-eval'; "
+        "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data:; "
-        "font-src 'self' https://cdn.jsdelivr.net data:; "
+        "font-src 'self' data:; "
         "connect-src 'self'; "
         "worker-src 'self' blob:; "
         "base-uri 'self'; "

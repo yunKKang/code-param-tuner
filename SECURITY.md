@@ -8,11 +8,13 @@ Code Param Tuner is designed as a local-only app.
 - The frontend does not persist API keys in `localStorage`.
 - `/api/settings` never returns the raw API key; it only returns whether a key exists.
 - Request and error logs do not include API keys.
+- The Monaco editor runtime is vendored under `frontend/vendor/monaco-editor`, so the app does not load editor scripts from a CDN.
 
 ## Network Boundaries
 
 - The server binds to `127.0.0.1` by default.
 - CORS defaults to `http://localhost:8000` and `http://127.0.0.1:8000`.
+- CSP only allows scripts, styles, fonts, images, and API calls from this local app.
 - Do not expose this service on public or shared networks unless you add authentication and a deployment-grade secret store.
 
 ## Third-Party API URLs
